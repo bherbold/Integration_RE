@@ -4,6 +4,10 @@ using Dates
 using CSV
 using DataFrames
 
+#General 
+
+tfinal = 12
+
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
 df = DateFormat("dd/mm/yyyy");
@@ -45,9 +49,9 @@ for day in eachrow(demand)
     end
     
 
-end # The demand is now stored for every hour in a (8760,2) Matrix
+end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
-for i = 1:8760
+for i = 1:tfinal
     if demandrow.Demand[i] == 0
         #demandrow.Demand[i] = demandrow.Demand[i-1]
         delete!(demandrow,[i])
@@ -71,7 +75,7 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 years = 50;
 
 capex_nuc = 3600000;
-opex_nuc = 20*8760*years;
+opex_nuc = 20*tfinal*years;
 #cost_nuc = 1
 P_nuc_old = 2*1000;
 
@@ -98,30 +102,83 @@ m = Model(Ipopt.Optimizer)
 #parameter constraints
 @variable(m, P_nuc >= 0)
 @variable(m, P_gas >= 0)
-@variable(m, gen_gas[1:8760] >= 0)
+@variable(m, gen_gas[1:tfinal] >= 0)
 @variable(m, solarSize >= 0)
-@variable(m, gen_solar[1:8760] >= 0)
+@variable(m, gen_solar[1:tfinal] >= 0)
 
 @variable(m, windSize >= 0)
-@variable(m, gen_wind[1:8760] >= 0)
+@variable(m, gen_wind[1:tfinal] >= 0)
 
 #objective funktion
-@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc) + capex_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:8760]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
+@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc) + capex_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
 
 
 
-for i = 1:8760
+for i = 1:tfinal
     @NLconstraint(m, gen_gas[i] <= P_gas + P_gas_old)
     @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
     @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 #variable constraints
-for i = 1:8760
+for i = 1:tfinal
 
     @NLconstraint(m,P_nuc_old + P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
 end
 
 optimize!(m)
+
+#### EXPORT DATA TO CSV #######
+
+#Store values hourly
+
+#Nuclear
+nuc_cap_opt = JuMP.value.(P_nuc)
+nuc_cap_opt_list = zeros(tfinal)
+nuc_cap_opt_list[1] = nuc_cap_opt
+#nuc_opt = DataFrame(Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc))
+
+#Gas
+gas_cap_opt = JuMP.value.(P_gas)
+gas_cap_opt_list = zeros(tfinal)
+gas_cap_opt_list[1] = gas_cap_opt
+#gas_opt = DataFrame(Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas))
+
+#solar
+solar_cap_opt = JuMP.value.(solarSize)
+solar_cap_opt_list = zeros(tfinal)
+solar_cap_opt_list[1] = solar_cap_opt
+solar_avalable_opt = zeros(tfinal)
+solar_curt_opt = zeros(tfinal)
+solar_gen_inject_opt = zeros(tfinal)
+
+for i = 1:tfinal
+    solar_gen_inject_opt[i] = JuMP.value.((JuMP.value.(solarSize) * gen_solar[i]))
+    solar_avalable_opt[i] = JuMP.value.(solarSize) * gen_solar_av[i,3]
+    solar_curt_opt[i] = JuMP.value.(gen_solar[i])/gen_solar_av[i,3]
+end
+#solar_opt = DataFrame(Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt )
+
+#wind
+wind_cap_opt = JuMP.value.(windSize)
+wind_cap_opt_list = zeros(tfinal)
+wind_cap_opt_list[1] = wind_cap_opt
+wind_avalable_opt = zeros(tfinal)
+wind_curt_opt = zeros(tfinal)
+wind_gen_inject_opt = zeros(tfinal)
+
+for i = 1:tfinal
+    wind_gen_inject_opt[i] = JuMP.value.((JuMP.value.(windSize) * gen_wind[i]))
+    wind_avalable_opt[i] = JuMP.value.(windSize) * gen_wind_av[i,3]
+    wind_curt_opt[i] = JuMP.value.(gen_wind[i])/gen_wind_av[i,3]
+end
+#wind_opt = DataFrame(wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt )
+
+overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
+
+CSV.write("data/optimal/Optimal_Values_C.csv", overall_opt)
+
+
+##### CHECK DATA RESULTS ON CONSOL #####
 
 hourInvest = 12
 

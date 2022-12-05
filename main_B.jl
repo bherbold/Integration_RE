@@ -4,6 +4,9 @@ using Dates
 using CSV
 using DataFrames
 
+#General
+tfinal = 15;
+
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
 df = DateFormat("dd/mm/yyyy");
@@ -45,31 +48,27 @@ for day in eachrow(demand)
     end
     
 
-end # The demand is now stored for every hour in a (8760,2) Matrix
+end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
-for i = 1:8760
+for i = 1:tfinal
     if demandrow.Demand[i] == 0
         #demandrow.Demand[i] = demandrow.Demand[i-1]
         delete!(demandrow,[i])
     end
 end
 
-#delete!(demandrow,[1])
-#lastElement = demandrow[size(demandrow,1),2]
-#push!(demandrow, (size(demandrow,1) + 1, lastElement))
+# Solar generation 1 MW
 
-# Solar generation 1 KW
+gen_solar_av = CSV.read("data/solar1.csv", DataFrame)
 
-gen_solar = CSV.read("data/solar1.csv", DataFrame)
+# Solar generation 1 MW
 
-# Solar generation 1 KW
-
-gen_wind = CSV.read("data/wind1.csv", DataFrame)
+gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 
 #known variables
 years = 50;
 
-cost_nuc = 3600000 + 20*8760*years;
+cost_nuc = 3600000 + 20*tfinal*years;
 #cost_nuc = 1
 capex_gas = 823000;
 opex_gas = 150*years;
@@ -87,7 +86,7 @@ new_wind = years/wind_life;    # amount of Batteries required
 capex_wind = 1000000*new_wind; # Euro per MW
 opex_wind = 40000*years; # Euro per MW per year
 
-#Ratio Renewable Engery other all the years
+#Ratio of Renewables over all years
 ratioRE = 0.5
 
 #model
@@ -96,40 +95,87 @@ m = Model(Ipopt.Optimizer)
 #parameter constraints
 @variable(m, P_nuc >= 0)
 @variable(m, P_gas >= 0)
-@variable(m, gen_gas[1:8760] >= 0)
+@variable(m, gen_gas[1:tfinal] >= 0)
 @variable(m, solarSize >= 0)
-@variable(m, solarCurt[1:8760] >= 0)
-
+@variable(m, gen_solar[1:tfinal] >= 0)
 @variable(m, windSize >= 0)
-@variable(m, windCurt[1:8760] >= 0)
+@variable(m, gen_wind[1:tfinal] >= 0)
 
-
-
-#@variable(m, x[1:8760] , Bin)
+#@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
-@objective(m, Min, cost_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:8760]) + capex_solar*solarSize + opex_solar * solarSize + capex_wind*windSize + opex_wind * windSize ) 
+@objective(m, Min, cost_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
 
 
 
-for i = 1:8760
+for i = 1:tfinal
     @NLconstraint(m, gen_gas[i] <= P_gas)
+    @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
+    @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 #variable constraints
-for i = 1:8760
-    @NLconstraint(m, solarCurt[i] <= 1)
-    @NLconstraint(m, windCurt[i] <= 1)
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarCurt[i]* solarSize * gen_solar[i,3] + windCurt[i] * windSize * gen_wind[i,3] == demandrow[i, 2])
+for i = 1:tfinal
+
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
 end
 
-@constraint(m, sum(solarCurt[i]* solarSize * gen_solar[i,3] for i in 1:8760) + sum(windCurt[i] * windSize * gen_wind[i,3] for i in 1:8760)  == ratioRE*sum(demandrow[1:8760, 2]))
+@constraint(m, sum(solarSize * gen_solar[i] for i in 1:tfinal) + sum(windSize * gen_wind[i] for i in 1:tfinal)  == ratioRE*sum(demandrow[1:tfinal, 2]))
 
-#@constraint(m, maximum(gen_gas,1) == P_gas)
-
-
-#@NLconstraint(m, eq10, marginal_cost == 180 + 10 * G_bio)
 
 optimize!(m)
+
+#### EXPORT DATA TO CSV #######
+
+#Store values hourly
+
+#Nuclear
+nuc_cap_opt = JuMP.value.(P_nuc)
+nuc_cap_opt_list = zeros(tfinal)
+nuc_cap_opt_list[1] = nuc_cap_opt
+#nuc_opt = DataFrame(Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc))
+
+#Gas
+gas_cap_opt = JuMP.value.(P_gas)
+gas_cap_opt_list = zeros(tfinal)
+gas_cap_opt_list[1] = gas_cap_opt
+#gas_opt = DataFrame(Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas))
+
+#solar
+solar_cap_opt = JuMP.value.(solarSize)
+solar_cap_opt_list = zeros(tfinal)
+solar_cap_opt_list[1] = solar_cap_opt
+solar_avalable_opt = zeros(tfinal)
+solar_curt_opt = zeros(tfinal)
+solar_gen_inject_opt = zeros(tfinal)
+
+for i = 1:tfinal
+    solar_gen_inject_opt[i] = JuMP.value.((JuMP.value.(solarSize) * gen_solar[i]))
+    solar_avalable_opt[i] = JuMP.value.(solarSize) * gen_solar_av[i,3]
+    solar_curt_opt[i] = JuMP.value.(gen_solar[i])/gen_solar_av[i,3]
+end
+#solar_opt = DataFrame(Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt )
+
+#wind
+wind_cap_opt = JuMP.value.(windSize)
+wind_cap_opt_list = zeros(tfinal)
+wind_cap_opt_list[1] = wind_cap_opt
+wind_avalable_opt = zeros(tfinal)
+wind_curt_opt = zeros(tfinal)
+wind_gen_inject_opt = zeros(tfinal)
+
+for i = 1:tfinal
+    wind_gen_inject_opt[i] = JuMP.value.((JuMP.value.(windSize) * gen_wind[i]))
+    wind_avalable_opt[i] = JuMP.value.(windSize) * gen_wind_av[i,3]
+    wind_curt_opt[i] = JuMP.value.(gen_wind[i])/gen_wind_av[i,3]
+end
+#wind_opt = DataFrame(wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt )
+
+overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
+
+CSV.write("data/optimal/Optimal_Values_B.csv", overall_opt)
+
+
+##### CHECK DATA RESULTS ON CONSOL #####
 
 hourInvest = 12
 
@@ -142,18 +188,18 @@ println(JuMP.value.(gen_gas[hourInvest]))
 println("Solar Capacity:")
 println(JuMP.value.(solarSize), " MW")
 println("Solar Generation available:")
-println((JuMP.value.(solarSize) * gen_solar[hourInvest,3]), " MW")
+println((JuMP.value.(solarSize) * gen_solar_av[hourInvest,3]), " MW")
 println("Solar Generation injected:")
-println(JuMP.value.(solarCurt[hourInvest]) * (JuMP.value.(solarSize) * gen_solar[hourInvest,3]), " MW")
+println(JuMP.value.((JuMP.value.(solarSize) * gen_solar[hourInvest])), " MW")
 println("Solar Operation Ratio:")
-println(JuMP.value.(solarCurt[hourInvest]))
+println(JuMP.value.(gen_solar[hourInvest])/gen_solar_av[hourInvest,3])
 println("Wind Capacity:")
 println(JuMP.value.(windSize), " MW")
 println("Wind Generation available:")
-println((JuMP.value.(windSize) * gen_wind[hourInvest,3]), " MW")
+println((JuMP.value.(windSize) * gen_wind_av[hourInvest,3]), " MW")
 println("Wind Generation injected:")
-println(JuMP.value.(windCurt[hourInvest]) * (JuMP.value.(windSize) * gen_wind[hourInvest,3]), " MW")
+println(JuMP.value.((JuMP.value.(windSize) * gen_wind[hourInvest])), " MW")
 println("wind Operation Ratio:")
-println(JuMP.value.(windCurt[hourInvest]))
+println(JuMP.value.(gen_wind[hourInvest])/gen_wind_av[hourInvest,3])
 println("Demand 1:")
 println(JuMP.value.(demandrow[hourInvest,2]))
