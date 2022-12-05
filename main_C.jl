@@ -100,8 +100,8 @@ opex_wind = 40000*years; # Euro per MW per year
 m = Model(Ipopt.Optimizer)
 
 #parameter constraints
-@variable(m, P_nuc >= 0)
-@variable(m, P_gas >= 0)
+@variable(m, P_nuc_new >= 0)
+@variable(m, P_gas_new >= 0)
 @variable(m, gen_gas[1:tfinal] >= 0)
 @variable(m, solarSize >= 0)
 @variable(m, gen_solar[1:tfinal] >= 0)
@@ -110,19 +110,19 @@ m = Model(Ipopt.Optimizer)
 @variable(m, gen_wind[1:tfinal] >= 0)
 
 #objective funktion
-@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc) + capex_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
+@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + capex_gas * P_gas_new + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
 
 
 
 for i = 1:tfinal
-    @NLconstraint(m, gen_gas[i] <= P_gas + P_gas_old)
+    @NLconstraint(m, gen_gas[i] <= P_gas_new + P_gas_old)
     @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
     @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 #variable constraints
 for i = 1:tfinal
 
-    @NLconstraint(m,P_nuc_old + P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
+    @NLconstraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
 end
 
 optimize!(m)
@@ -132,16 +132,16 @@ optimize!(m)
 #Store values hourly
 
 #Nuclear
-nuc_cap_opt = JuMP.value.(P_nuc)
-nuc_cap_opt_list = zeros(tfinal)
-nuc_cap_opt_list[1] = nuc_cap_opt
-#nuc_opt = DataFrame(Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc))
+nuc_cap_new_opt = JuMP.value.(P_nuc_new)
+nuc_cap_new_opt_list = zeros(tfinal)
+nuc_cap_new_opt_list[1] = nuc_cap_new_opt
+#nuc_opt = DataFrame(Nuc_Capacity_MW = nuc_cap_new_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc_new))
 
 #Gas
-gas_cap_opt = JuMP.value.(P_gas)
-gas_cap_opt_list = zeros(tfinal)
-gas_cap_opt_list[1] = gas_cap_opt
-#gas_opt = DataFrame(Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas))
+gas_cap_NEW_opt = JuMP.value.(P_gas_new)
+gas_cap_NEW_opt_list = zeros(tfinal)
+gas_cap_NEW_opt_list[1] = gas_cap_NEW_opt
+#gas_opt = DataFrame(Gas_Capacity_MW = gas_cap_NEW_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas))
 
 #solar
 solar_cap_opt = JuMP.value.(solarSize)
@@ -173,7 +173,7 @@ for i = 1:tfinal
 end
 #wind_opt = DataFrame(wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt )
 
-overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
+overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_NEW_MW = nuc_cap_new_opt_list, Nuc_generation_NEW_in_hour=JuMP.value.(P_nuc_new),Gas_Capacity_NEW_MW = gas_cap_NEW_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
 
 CSV.write("data/optimal/Optimal_Values_C.csv", overall_opt)
 
@@ -182,10 +182,10 @@ CSV.write("data/optimal/Optimal_Values_C.csv", overall_opt)
 
 hourInvest = 12
 
-println("P_nuc NEW:")
-println(JuMP.value.(P_nuc))
-println("P_gas NEW:")
-println(JuMP.value.(P_gas))
+println("P_nuc_new NEW:")
+println(JuMP.value.(P_nuc_new))
+println("P_gas_new NEW:")
+println(JuMP.value.(P_gas_new))
 println("Gas gen 1:")
 println(JuMP.value.(gen_gas[hourInvest]))
 println("Solar Capacity:")
