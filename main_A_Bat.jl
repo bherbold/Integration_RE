@@ -14,7 +14,7 @@ dt = 1;
 #demand start at (2,3:27) (every day with its hours is a row)
 
 df = DateFormat("dd/mm/yyyy");
-demand = CSV.read("Demanda_d_energia_el_ctrica_hor_ria_a_Catalunya_per_MWh.csv", DataFrame)
+demand = CSV.read("data/Demanda_d_energia_el_ctrica_hor_ria_a_Catalunya_per_MWh.csv", DataFrame)
 demand.DATA = map(row -> Date(row, df), demand.DATA)
 filter!(x -> Dates.year(x.DATA) == 2019, demand) # only 2019 data
 sort!(demand, (:DATA)) # sort the entries by date
@@ -69,12 +69,12 @@ end
 
 # Solar generation 1 MW
 
-gen_solar_av = CSV.read("solar1.csv", DataFrame)
+gen_solar_av = CSV.read("data/solar1.csv", DataFrame)
 
 
 # Solar generation 1 MW
 
-gen_wind_av = CSV.read("wind1.csv", DataFrame)
+gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 
 #known variables
 years = 50;
@@ -87,14 +87,14 @@ opex_gas = 150*years;
 # Cost solar
 solar_life = 25;             #Battery life in years
 new_solar = years/solar_life;    # amount of Batteries required 
-capex_solar = 900000; # Euro per MW
+capex_solar = 900000*new_solar; # Euro per MW
 opex_solar = 17000*years; # Euro per MW -> but will it last 50 years??? 
 #Electrifying (source)
 
 # Cost wind
 wind_life = 25;             #Battery life in years
 new_wind = years/wind_life;    # amount of Batteries required 
-capex_wind = 1000000; # Euro per MW
+capex_wind = 1000000*new_wind; # Euro per MW
 opex_wind = 40000*years; # Euro per MW per year
 
 # Battery
@@ -138,6 +138,7 @@ for i = 1:tfinal
     @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
     @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
+
 #variable constraints
 for i = 1:tfinal
 
