@@ -155,7 +155,7 @@ end
 @NLconstraint(m, battery_power_capacity == bat_power_ratio*battery_energy_capacity);
 
 # CONSTRAINTS 6: STATE OF CHARGE TRACKING
-@NLconstraint(m, SOC_battery[1] == SOC_ini);
+@NLconstraint(m, SOC_battery[1] == SOC_ini + (((eta_charge*charge_battery_t[1])-(discharge_battery_t[1]/eta_discharge))*dt)/battery_energy_capacity);
 
 for ti = 2:tfinal
     @NLconstraint(m, SOC_battery[ti] == SOC_battery[ti-1] + (((eta_charge*charge_battery_t[ti])-(discharge_battery_t[ti]/eta_discharge))*dt)/battery_energy_capacity);
