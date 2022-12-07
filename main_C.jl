@@ -6,7 +6,7 @@ using DataFrames
 
 #General 
 
-tfinal = 100
+tfinal = 8760
 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
