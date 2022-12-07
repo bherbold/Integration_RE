@@ -5,7 +5,7 @@ using CSV
 using DataFrames
 
 #General
-tfinal = 15;
+tfinal = 8760;
 dt = 1; 
 
 #Read Data

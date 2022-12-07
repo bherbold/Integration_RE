@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 15;
+tfinal = 8760;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
