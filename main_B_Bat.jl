@@ -115,7 +115,8 @@ bat_power_ratio = 0.5;      # KW/KWh
 ratioRE = 0.5
 
 #model
-m = Model(Ipopt.Optimizer)
+m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)

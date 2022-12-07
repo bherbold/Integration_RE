@@ -88,7 +88,8 @@ capex_wind = 1296 * 1000 *new_wind; # Euro per MW
 opex_wind = 40 * 1000*years; # Euro per MW per year
 
 #model
-m = Model(Ipopt.Optimizer)
+m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)

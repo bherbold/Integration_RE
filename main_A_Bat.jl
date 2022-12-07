@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 8760;
+tfinal = 1000;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -104,8 +104,18 @@ SOC_bat_MIN = 0.20;         # (-) - Minimum SOC for batteries
 SOC_ini = 0.5;              # Initial State of charge
 bat_power_ratio = 0.5;      # KW/KWh
 
+# Initializing variables
+#gen_gas = zeros(Float16,tfinal)
+#gen_solar = zeros(Float16,tfinal)
+#gen_wind = zeros(Float16,tfinal)
+#charge_battery_t = zeros(Float16,tfinal)
+#discharge_battery_t = zeros(Float16,tfinal)
+#SOC_battery = zeros(Float16,tfinal)
+
 #model
-m = Model(Ipopt.Optimizer)
+#m = Model(Ipopt.Optimizer)
+m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)
@@ -140,7 +150,7 @@ end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    #@NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
