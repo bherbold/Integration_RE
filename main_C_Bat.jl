@@ -85,31 +85,30 @@ opex_gas_var = 4.8*1000 * years;
 P_gas_old = 3*700;
 
 # Cost solar
-solar_life = 25;             #Battery life in years
+solar_life = 30;             #Battery life in years
 new_solar = years/solar_life;    # amount of Batteries required 
-capex_solar = 900000*new_solar; # Euro per MW
-opex_solar = 17000*years; # Euro per MW -> but will it last 50 years??? 
-#Electrifying (source)
+capex_solar = 1067 * 1000 *new_solar; # Euro per MW
+opex_solar = 19 * 1000 *years; # Euro per MW -> but will it last 50 years??? 
 
 # Cost wind
-wind_life = 25;             #Battery life in years
+wind_life = 30;             #Battery life in years
 new_wind = years/wind_life;    # amount of Batteries required 
-capex_wind = 1000000*new_wind; # Euro per MW
-opex_wind = 40000*years; # Euro per MW per year
+capex_wind = 1296 * 1000 *new_wind; # Euro per MW
+opex_wind = 40 * 1000*years; # Euro per MW per year
 
 # Battery
-batt_life = 15;             #Battery life in years
+batt_life = 30;             #Battery life in years (includes change)
 new_batt = years/batt_life;    # amount of Batteries required 
-bat_capex = 600*1000*new_batt; # Capex Battery
-bat_opex = 20000*years;        # Opex Battery
+bat_capex = 807*1000*new_batt; # Capex Battery for 2 Hr Battery
+bat_opex = 19.1 * 1000 *years;        # Opex Battery
 
-efficiency_bat = 0.97;      # check with professor
-eta_charge = 0.95;          # check with professor
-eta_discharge = 0.95;       # check with professor
+eta_charge = 0.93;          # check with professor
+eta_discharge = 0.93;       # check with professor
 SOC_bat_MAX = 1;            # (-) - Maximum SOC for batteries
-SOC_bat_MIN = 0.1;         # (-) - Minimum SOC for batteries
+SOC_bat_MIN = 0.20;         # (-) - Minimum SOC for batteries
 SOC_ini = 0.5;              # Initial State of charge
 bat_power_ratio = 0.5;      # KW/KWh
+
 
 #model
 m = Model(Ipopt.Optimizer)
@@ -129,7 +128,7 @@ m = Model(Ipopt.Optimizer)
 @variable(m, SOC_battery[1:tfinal] >= 0)  # (p.u) - State of charge of the battery 
 
 #objective funktion
-@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize + bat_opex*battery_energy_capacity + bat_capex ) 
+@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize + bat_opex*battery_power_capacity + bat_capex*battery_power_capacity ) 
 
 for i = 1:tfinal
     @NLconstraint(m, gen_gas[i] <= P_gas_new + P_gas_old)
