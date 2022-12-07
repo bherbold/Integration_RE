@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 1500;
+tfinal = 8760;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -108,7 +108,7 @@ eta_charge = 0.95;          # check with professor
 eta_discharge = 0.95;       # check with professor
 SOC_bat_MAX = 1;            # (-) - Maximum SOC for batteries
 SOC_bat_MIN = 0.1;         # (-) - Minimum SOC for batteries
-SOC_ini = 0.5;              # Initial State of charge
+SOC_ini = 0.1;              # Initial State of charge
 bat_power_ratio = 0.5;      # KW/KWh
 
 #model
@@ -145,6 +145,11 @@ for i = 1:tfinal
     @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
 end
 
+#charge and discharge not at the same time
+for ti = 1:tfinal
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+end
+
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
     @NLconstraint(m, charge_battery_t[ti] <= battery_power_capacity);
@@ -174,6 +179,11 @@ end
 for ti = 1:tfinal
     @NLconstraint(m, SOC_battery[ti] >= SOC_bat_MIN);
 end
+
+# initial and final SOC should be similar
+#@NLconstraint(m,SOC_battery[tfinal] >= SOC_battery[1]*0.95);
+#@NLconstraint(m,SOC_battery[tfinal] <= SOC_battery[1]*1.05)
+
 
 optimize!(m)
 

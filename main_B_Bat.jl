@@ -147,6 +147,11 @@ for i = 1:tfinal
     @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
 end
 
+#charge and discharge not at the same time
+for ti = 1:tfinal
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+end
+
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
     @NLconstraint(m, charge_battery_t[ti] <= battery_power_capacity);
@@ -177,7 +182,13 @@ for ti = 1:tfinal
     @NLconstraint(m, SOC_battery[ti] >= SOC_bat_MIN);
 end
 
+#Renewables Ratio
 @constraint(m, sum(solarSize * gen_solar[i] for i in 1:tfinal) + sum(windSize * gen_wind[i] for i in 1:tfinal)  == ratioRE*sum(demandrow[1:tfinal, 2]))
+
+# initial and final SOC should be similar
+#@NLconstraint(m,SOC_battery[tfinal] >= SOC_battery[1]*0.95);
+#@NLconstraint(m,SOC_battery[tfinal] <= SOC_battery[1]*1.05)
+
 
 
 optimize!(m)
