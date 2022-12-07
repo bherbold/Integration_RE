@@ -85,17 +85,17 @@ opex_gas_var = 4.8*1000 * years;
 P_gas_old = 3*700;
 
 # Cost solar
-solar_life = 25;             #Battery life in years
+solar_life = 30;             #Battery life in years
 new_solar = years/solar_life;    # amount of Batteries required 
-capex_solar = 900000*new_solar; # Euro per MW
-opex_solar = 17000*years; # Euro per MW -> but will it last 50 years??? 
+capex_solar = 1067 * 1000 *new_solar; # Euro per MW
+opex_solar = 19 * 1000 *years; # Euro per MW -> but will it last 50 years??? 
 #Electrifying (source)
 
 # Cost wind
-wind_life = 25;             #Battery life in years
+wind_life = 30;             #Battery life in years
 new_wind = years/wind_life;    # amount of Batteries required 
-capex_wind = 1000000*new_wind; # Euro per MW
-opex_wind = 40000*years; # Euro per MW per year
+capex_wind = 1296 * 1000 *new_wind; # Euro per MW
+opex_wind = 40 * 1000*years; # Euro per MW per year
 
 
 #model
