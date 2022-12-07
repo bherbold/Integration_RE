@@ -140,7 +140,7 @@ end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+    #@NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
