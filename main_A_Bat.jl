@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 8760;
+tfinal = 100;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -61,12 +61,6 @@ for i = 1:tfinal
     end
 end
 
-
-
-#delete!(demandrow,[1])
-#lastElement = demandrow[size(demandrow,1),2]
-#push!(demandrow, (size(demandrow,1) + 1, lastElement))
-
 # Solar generation 1 MW
 
 gen_solar_av = CSV.read("data/solar1.csv", DataFrame)
@@ -82,7 +76,8 @@ years = 50;
 cost_nuc = 3600000 + 20*tfinal*years;
 #cost_nuc = 1
 capex_gas = 823000;
-opex_gas = 150*years;
+opex_gas_fix = 20 * 1000 *years;
+opex_gas_var = 4.8* 1000 * years;
 
 # Cost solar
 solar_life = 25;             #Battery life in years
@@ -131,7 +126,7 @@ m = Model(Ipopt.Optimizer)
 #@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
-@objective(m, Min, cost_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_energy_capacity + bat_capex ) 
+@objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_energy_capacity + bat_capex ) 
 
 for i = 1:tfinal
     @NLconstraint(m, gen_gas[i] <= P_gas)
@@ -184,8 +179,6 @@ end
 #@NLconstraint(m,SOC_battery[tfinal] >= SOC_battery[1]*0.95);
 #@NLconstraint(m,SOC_battery[tfinal] <= SOC_battery[1]*1.05)
 
-
-optimize!(m)
 
 #### EXPORT DATA TO CSV #######
 
@@ -254,12 +247,12 @@ end
 
 overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt,Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
 
-CSV.write("data/optimal/Optimal_Values_A_BATTERY.csv", overall_opt)
+CSV.write("data/optimal/Optimal_Values_A_BATTERY_50YEARS.csv", overall_opt)
 
 
 ##### CHECK DATA RESULTS ON CONSOL #####
 
-hourInvest = 12
+hourInvest = 1
 
 println("P_nuc:")
 println(JuMP.value.(P_nuc))

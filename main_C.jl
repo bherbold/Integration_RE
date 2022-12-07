@@ -6,7 +6,7 @@ using DataFrames
 
 #General 
 
-tfinal = 12
+tfinal = 100
 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -74,13 +74,14 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 #known variables
 years = 50;
 
-capex_nuc = 3600000;
-opex_nuc = 20*tfinal*years;
+capex_nuc = 7003 * 1000;
+opex_nuc = 109*years + 2.9*years*tfinal;
 #cost_nuc = 1
 P_nuc_old = 2*1000;
 
-capex_gas = 823000;
-opex_gas = 150*years;
+capex_gas = 820 * 1000;
+opex_gas_fix = 20 * 1000 *years;
+opex_gas_var = 4.8*1000 * years;
 P_gas_old = 3*700;
 
 # Cost solar
@@ -96,6 +97,7 @@ new_wind = years/wind_life;    # amount of Batteries required
 capex_wind = 1000000*new_wind; # Euro per MW
 opex_wind = 40000*years; # Euro per MW per year
 
+
 #model
 m = Model(Ipopt.Optimizer)
 
@@ -110,7 +112,7 @@ m = Model(Ipopt.Optimizer)
 @variable(m, gen_wind[1:tfinal] >= 0)
 
 #objective funktion
-@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + capex_gas * P_gas_new + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
+@objective(m, Min, opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
 
 
 

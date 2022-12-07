@@ -82,7 +82,8 @@ years = 50;
 cost_nuc = 3600000 + 20*tfinal*years;
 #cost_nuc = 1
 capex_gas = 823000;
-opex_gas = 150*years;
+opex_gas_fix = 20 * 1000 *years;
+opex_gas_var = 4.8* 1000 * years;
 
 # Cost solar
 solar_life = 25;             #Battery life in years
@@ -134,7 +135,7 @@ m = Model(Ipopt.Optimizer)
 #@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
-@objective(m, Min, cost_nuc * P_nuc + capex_gas * P_gas + opex_gas * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_energy_capacity + bat_capex ) 
+@objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_energy_capacity + bat_capex ) 
 
 for i = 1:tfinal
     @NLconstraint(m, gen_gas[i] <= P_gas)
