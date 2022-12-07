@@ -1,5 +1,6 @@
 using Pkg
-using Ipopt, JuMP
+#using Ipopt
+using Ipopt,JuMP
 using Dates
 using CSV
 using DataFrames
@@ -8,7 +9,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 1000;
+tfinal = 10;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -22,30 +23,17 @@ sort!(demand, (:DATA)) # sort the entries by date
 demandrow = DataFrame(Hour=[], Demand=[])
 
 for day in eachrow(demand)
-    push!(demandrow, (size(demandrow,1) + 1,day.H01))
-    push!(demandrow, (size(demandrow,1) + 1,day.H02))
-    push!(demandrow, (size(demandrow,1) + 1,day.H03))
-    push!(demandrow, (size(demandrow,1) + 1,day.H04))
-    push!(demandrow, (size(demandrow,1) + 1,day.H05))
-    push!(demandrow, (size(demandrow,1) + 1,day.H06))
-    push!(demandrow, (size(demandrow,1) + 1,day.H07))
-    push!(demandrow, (size(demandrow,1) + 1,day.H08))
-    push!(demandrow, (size(demandrow,1) + 1,day.H09))
-    push!(demandrow, (size(demandrow,1) + 1,day.H10))
-    push!(demandrow, (size(demandrow,1) + 1,day.H11))
-    push!(demandrow, (size(demandrow,1) + 1,day.H12))
-    push!(demandrow, (size(demandrow,1) + 1,day.H13))
-    push!(demandrow, (size(demandrow,1) + 1,day.H14))
-    push!(demandrow, (size(demandrow,1) + 1,day.H15))
-    push!(demandrow, (size(demandrow,1) + 1,day.H16))
-    push!(demandrow, (size(demandrow,1) + 1,day.H17))
-    push!(demandrow, (size(demandrow,1) + 1,day.H18))
-    push!(demandrow, (size(demandrow,1) + 1,day.H19))
-    push!(demandrow, (size(demandrow,1) + 1,day.H20))
-    push!(demandrow, (size(demandrow,1) + 1,day.H21))
-    push!(demandrow, (size(demandrow,1) + 1,day.H22))
-    push!(demandrow, (size(demandrow,1) + 1,day.H23))
-    push!(demandrow, (size(demandrow,1) + 1,day.H24))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/4))
+  
+    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/4))
 
     if day.H25 != 0
         push!(demandrow, (size(demandrow,1) + 1,day.H25))
@@ -54,12 +42,14 @@ for day in eachrow(demand)
 
 end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
-for i = 1:tfinal
+for i = 1:size(demandrow,1)
     if demandrow.Demand[i] == 0
         #demandrow.Demand[i] = demandrow.Demand[i-1]
         delete!(demandrow,[i])
     end
 end
+tfinal = size(demandrow,1); #run all
+#tfinal = 10;
 
 # Solar generation 1 MW
 
@@ -137,9 +127,9 @@ set_silent(m)
 @objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_power_capacity + bat_capex*battery_power_capacity ) 
 
 for i = 1:tfinal
-    @NLconstraint(m, gen_gas[i] <= P_gas)
-    @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
-    @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
+    @constraint(m, gen_gas[i] <= P_gas)
+    @constraint(m,gen_solar[i] <= gen_solar_av[i,3])
+    @constraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 
 #variable constraints
@@ -150,17 +140,17 @@ end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 0);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] <= battery_power_capacity);
+    @constraint(m, charge_battery_t[ti] <= battery_power_capacity);
 end
 
 # COSTRAINT 4: BATTERY DISCHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
-    @NLconstraint(m, discharge_battery_t[ti] <= battery_power_capacity);
+    @constraint(m, discharge_battery_t[ti] <= battery_power_capacity);
 end
 
 # CONSTRAINT 5: DISCHARGE CAPACITY IS HALF THE BATTERY POWER CAPACITY
@@ -175,12 +165,12 @@ end
 
 # CONSTRAINT 8a: SOC LIMITS (MAXIMUM)
 for ti = 1:tfinal
-    @NLconstraint(m, SOC_bat_MAX >= SOC_battery[ti]);
+    @constraint(m, SOC_bat_MAX >= SOC_battery[ti]);
 end
 
 # CONSTRAINT 8b: SOC LIMITS (MINIMUM)
 for ti = 1:tfinal
-    @NLconstraint(m, SOC_battery[ti] >= SOC_bat_MIN);
+    @constraint(m, SOC_battery[ti] >= SOC_bat_MIN);
 end
 
 # initial and final SOC should be similar

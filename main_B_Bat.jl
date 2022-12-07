@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 8760;
+tfinal = 10;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -22,30 +22,17 @@ sort!(demand, (:DATA)) # sort the entries by date
 demandrow = DataFrame(Hour=[], Demand=[])
 
 for day in eachrow(demand)
-    push!(demandrow, (size(demandrow,1) + 1,day.H01))
-    push!(demandrow, (size(demandrow,1) + 1,day.H02))
-    push!(demandrow, (size(demandrow,1) + 1,day.H03))
-    push!(demandrow, (size(demandrow,1) + 1,day.H04))
-    push!(demandrow, (size(demandrow,1) + 1,day.H05))
-    push!(demandrow, (size(demandrow,1) + 1,day.H06))
-    push!(demandrow, (size(demandrow,1) + 1,day.H07))
-    push!(demandrow, (size(demandrow,1) + 1,day.H08))
-    push!(demandrow, (size(demandrow,1) + 1,day.H09))
-    push!(demandrow, (size(demandrow,1) + 1,day.H10))
-    push!(demandrow, (size(demandrow,1) + 1,day.H11))
-    push!(demandrow, (size(demandrow,1) + 1,day.H12))
-    push!(demandrow, (size(demandrow,1) + 1,day.H13))
-    push!(demandrow, (size(demandrow,1) + 1,day.H14))
-    push!(demandrow, (size(demandrow,1) + 1,day.H15))
-    push!(demandrow, (size(demandrow,1) + 1,day.H16))
-    push!(demandrow, (size(demandrow,1) + 1,day.H17))
-    push!(demandrow, (size(demandrow,1) + 1,day.H18))
-    push!(demandrow, (size(demandrow,1) + 1,day.H19))
-    push!(demandrow, (size(demandrow,1) + 1,day.H20))
-    push!(demandrow, (size(demandrow,1) + 1,day.H21))
-    push!(demandrow, (size(demandrow,1) + 1,day.H22))
-    push!(demandrow, (size(demandrow,1) + 1,day.H23))
-    push!(demandrow, (size(demandrow,1) + 1,day.H24))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/4))
+  
+    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/4))
+
+    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/4))
 
     if day.H25 != 0
         push!(demandrow, (size(demandrow,1) + 1,day.H25))
@@ -54,13 +41,14 @@ for day in eachrow(demand)
 
 end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
-for i = 1:tfinal
+for i = 1:size(demandrow,1)
     if demandrow.Demand[i] == 0
         #demandrow.Demand[i] = demandrow.Demand[i-1]
         delete!(demandrow,[i])
     end
 end
-
+tfinal = size(demandrow,1); #run all
+#tfinal = 10;
 
 
 #delete!(demandrow,[1])
