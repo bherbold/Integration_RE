@@ -93,7 +93,7 @@ ratioRE = 0.5
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
-set_silent(m)
+#set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)
