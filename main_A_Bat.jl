@@ -9,11 +9,10 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 10;
-dt = 1; 
+tfinal = 8760
+dt = 1
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
-
 df = DateFormat("dd/mm/yyyy");
 demand = CSV.read("data/Demanda_d_energia_el_ctrica_hor_ria_a_Catalunya_per_MWh.csv", DataFrame)
 demand.DATA = map(row -> Date(row, df), demand.DATA)
@@ -23,17 +22,30 @@ sort!(demand, (:DATA)) # sort the entries by date
 demandrow = DataFrame(Hour=[], Demand=[])
 
 for day in eachrow(demand)
-    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/4))
-  
-    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/4))
+    push!(demandrow, (size(demandrow,1) + 1,day.H01))
+    push!(demandrow, (size(demandrow,1) + 1,day.H02))
+    push!(demandrow, (size(demandrow,1) + 1,day.H03))
+    push!(demandrow, (size(demandrow,1) + 1,day.H04))
+    push!(demandrow, (size(demandrow,1) + 1,day.H05))
+    push!(demandrow, (size(demandrow,1) + 1,day.H06))
+    push!(demandrow, (size(demandrow,1) + 1,day.H07))
+    push!(demandrow, (size(demandrow,1) + 1,day.H08))
+    push!(demandrow, (size(demandrow,1) + 1,day.H09))
+    push!(demandrow, (size(demandrow,1) + 1,day.H10))
+    push!(demandrow, (size(demandrow,1) + 1,day.H11))
+    push!(demandrow, (size(demandrow,1) + 1,day.H12))
+    push!(demandrow, (size(demandrow,1) + 1,day.H13))
+    push!(demandrow, (size(demandrow,1) + 1,day.H14))
+    push!(demandrow, (size(demandrow,1) + 1,day.H15))
+    push!(demandrow, (size(demandrow,1) + 1,day.H16))
+    push!(demandrow, (size(demandrow,1) + 1,day.H17))
+    push!(demandrow, (size(demandrow,1) + 1,day.H18))
+    push!(demandrow, (size(demandrow,1) + 1,day.H19))
+    push!(demandrow, (size(demandrow,1) + 1,day.H20))
+    push!(demandrow, (size(demandrow,1) + 1,day.H21))
+    push!(demandrow, (size(demandrow,1) + 1,day.H22))
+    push!(demandrow, (size(demandrow,1) + 1,day.H23))
+    push!(demandrow, (size(demandrow,1) + 1,day.H24))
 
     if day.H25 != 0
         push!(demandrow, (size(demandrow,1) + 1,day.H25))
@@ -42,14 +54,13 @@ for day in eachrow(demand)
 
 end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
-for i = 1:size(demandrow,1)
+for i = 1:tfinal
     if demandrow.Demand[i] == 0
         #demandrow.Demand[i] = demandrow.Demand[i-1]
         delete!(demandrow,[i])
     end
 end
-tfinal = size(demandrow,1); #run all
-#tfinal = 10;
+
 
 # Solar generation 1 MW
 
@@ -63,11 +74,12 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 #known variables
 years = 50;
 
-cost_nuc = 7003 * 1000 + 109*1000 *years + 3*1000 *years*tfinal;
-#cost_nuc = 1
+cost_nuc = 7003 * 1000 + 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
+
 capex_gas = 820 * 1000;
+gas_fuel = (0.0292/0.35)*1000; #gas price including eff. in €/MWh 
 opex_gas_fix = 20 * 1000 *years;
-opex_gas_var = 4.8* 1000 * years;
+opex_gas_var = (4.8+gas_fuel) * years;
 
 # Cost solar
 solar_life = 30;             #Battery life in years
@@ -105,7 +117,8 @@ bat_power_ratio = 0.5;      # KW/KWh
 #model
 #m = Model(Ipopt.Optimizer)
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
-set_silent(m)
+set_optimizer_attribute(m, "tol", 1e-4)
+#set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)
@@ -135,12 +148,14 @@ end
 #variable constraints
 for i = 1:tfinal
 
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
+    #@NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
 end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 0);
+    #@NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 0);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
@@ -245,7 +260,8 @@ for i = 1:tfinal
 end
 #batt_opt = DataFrame(Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
 
-overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt,Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
+demand_out = demandrow[1:tfinal,2];
+overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt,Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
 
 CSV.write("data/optimal/Optimal_Values_A_BATTERY_50YEARS.csv", overall_opt)
 

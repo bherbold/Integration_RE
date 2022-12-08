@@ -68,11 +68,12 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 #known variables
 years = 50;
 
-cost_nuc = 7003 * 1000 + 109*1000 *years + 3*1000 *years*tfinal;
-#cost_nuc = 1
+cost_nuc = 7003 * 1000 + 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
+
 capex_gas = 820 * 1000;
+gas_fuel = (0.0292/0.35)*1000; #gas price including eff. in €/MWh 
 opex_gas_fix = 20 * 1000 *years;
-opex_gas_var = 4.8 *1000* years;
+opex_gas_var = (4.8+gas_fuel) * years;
 
 # Cost solar
 solar_life = 30;             #Battery life in years
@@ -171,8 +172,8 @@ for i = 1:tfinal
     wind_curt_opt[i] = JuMP.value.(gen_wind[i])/gen_wind_av[i,3]
 end
 #wind_opt = DataFrame(wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt )
-
-overall_opt = DataFrame(hour= 1:tfinal,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
+demand_out = demandrow[1:tfinal,2];
+overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
 
 CSV.write("data/optimal/Optimal_Values_B.csv", overall_opt)
 

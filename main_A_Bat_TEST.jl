@@ -21,19 +21,20 @@ filter!(x -> Dates.year(x.DATA) == 2019, demand) # only 2019 data
 sort!(demand, (:DATA)) # sort the entries by date
 
 demandrow = DataFrame(Hour=[], Demand=[])
+downfactor = 4;
 
 for day in eachrow(demand)
-    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/downfactor))
 
-    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/downfactor))
   
-    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/downfactor))
 
-    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/downfactor))
 
-    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/downfactor))
 
-    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/4))
+    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/downfactor))
 
     if day.H25 != 0
         push!(demandrow, (size(demandrow,1) + 1,day.H25))
@@ -49,7 +50,8 @@ for i = 1:size(demandrow,1)
     end
 end
 tfinal = size(demandrow,1); #run all
-#tfinal = 10;
+
+#tfinal = 1000;
 #println(size(demandrow,1))
 # Solar generation 1 MW
 
@@ -63,11 +65,12 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 #known variables
 years = 50;
 
-cost_nuc = 7003 * 1000 + 109*1000 *years + 3*1000 *years*tfinal;
-#cost_nuc = 1
+cost_nuc = 7003 * 1000 + 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
+
 capex_gas = 820 * 1000;
+gas_fuel = (0.0292/0.35)*1000; #gas price including eff. in €/MWh 
 opex_gas_fix = 20 * 1000 *years;
-opex_gas_var = 4.8* 1000 * years;
+opex_gas_var = (4.8+gas_fuel) * years;
 
 # Cost solar
 solar_life = 30;             #Battery life in years
@@ -105,7 +108,9 @@ bat_power_ratio = 0.5;      # KW/KWh
 #model
 #m = Model(Ipopt.Optimizer)
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
-set_silent(m)
+set_optimizer_attribute(m, "max_iter", 8000)
+set_optimizer_attribute(m, "tol", 1e-2)
+#set_silent(m)
 
 #parameter constraints
 @variable(m, P_nuc >= 0)
@@ -124,7 +129,7 @@ set_silent(m)
 #@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
-@objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_power_capacity + bat_capex*battery_power_capacity ) 
+@objective(m, Min, (cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + downfactor * opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_power_capacity + bat_capex*battery_power_capacity) ) 
 
 for i = 1:tfinal
     @constraint(m, gen_gas[i] <= P_gas)
