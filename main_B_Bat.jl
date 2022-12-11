@@ -8,7 +8,7 @@ println("--- Start Program ---")
 
 #General 
 
-tfinal = 10;
+tfinal = 8760;
 dt = 1; 
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
@@ -101,10 +101,11 @@ bat_power_ratio = 0.5;      # KW/KWh
 
 
 #Ratio Renewable Engery other all the years
-ratioRE = 0.5
+ratioRE = 0.2
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_optimizer_attribute(m, "tol", 1e-2)
 set_silent(m)
 
 #parameter constraints
@@ -133,8 +134,9 @@ for i = 1:tfinal
 end
 #variable constraints
 for i = 1:tfinal
-
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
+    #@NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
 end
 
 #charge and discharge not at the same time
