@@ -4,6 +4,8 @@ using Dates
 using CSV
 using DataFrames
 
+println("--- Start Program ---")
+
 #General
 tfinal = 8760;
 
@@ -89,7 +91,7 @@ capex_wind = 1296 * 1000 *new_wind; # Euro per MW
 opex_wind = 40 * 1000*years; # Euro per MW per year
 
 #Ratio of Renewables over all years
-ratioRE = 0.5
+ratioRE = 0.999
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
@@ -118,8 +120,8 @@ for i = 1:tfinal
 end
 #variable constraints
 for i = 1:tfinal
-
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] >= -1e-4)
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] <= 1e-4)
 end
 
 @constraint(m, sum(solarSize * gen_solar[i] for i in 1:tfinal) + sum(windSize * gen_wind[i] for i in 1:tfinal)  == ratioRE*sum(demandrow[1:tfinal, 2]))
