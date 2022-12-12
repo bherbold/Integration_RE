@@ -1,16 +1,14 @@
 using Pkg
-#using Ipopt
-using Ipopt,JuMP
+using Ipopt, JuMP
 using Dates
 using CSV
 using DataFrames
 
 println("--- Start Program ---")
 
-#General 
+#General
+tfinal = 8760;
 
-tfinal = 8760
-dt = 1
 #Read Data
 #demand start at (2,3:27) (every day with its hours is a row)
 df = DateFormat("dd/mm/yyyy");
@@ -61,11 +59,9 @@ for i = 1:tfinal
     end
 end
 
-
 # Solar generation 1 MW
 
 gen_solar_av = CSV.read("data/solar1.csv", DataFrame)
-
 
 # Solar generation 1 MW
 
@@ -86,6 +82,7 @@ solar_life = 30;             #Battery life in years
 new_solar = years/solar_life;    # amount of Batteries required 
 capex_solar = 1067 * 1000 *new_solar; # Euro per MW
 opex_solar = 19 * 1000 *years; # Euro per MW -> but will it last 50 years??? 
+#Electrifying (source)
 
 # Cost wind
 wind_life = 30;             #Battery life in years
@@ -93,114 +90,48 @@ new_wind = years/wind_life;    # amount of Batteries required
 capex_wind = 1296 * 1000 *new_wind; # Euro per MW
 opex_wind = 40 * 1000*years; # Euro per MW per year
 
-# Battery
-batt_life = 30;             #Battery life in years (includes change)
-new_batt = years/batt_life;    # amount of Batteries required 
-bat_capex = 807*1000*new_batt; # Capex Battery for 2 Hr Battery
-bat_opex = 19.1 * 1000 *years;        # Opex Battery
-
-eta_charge = 0.93;          # check with professor
-eta_discharge = 0.93;       # check with professor
-SOC_bat_MAX = 1;            # (-) - Maximum SOC for batteries
-SOC_bat_MIN = 0.20;         # (-) - Minimum SOC for batteries
-SOC_ini = 0.5;              # Initial State of charge
-bat_power_ratio = 0.5;      # KW/KWh
-
-# Initializing variables
-#gen_gas = zeros(Float16,tfinal)
-#gen_solar = zeros(Float16,tfinal)
-#gen_wind = zeros(Float16,tfinal)
-#charge_battery_t = zeros(Float16,tfinal)
-#discharge_battery_t = zeros(Float16,tfinal)
-#SOC_battery = zeros(Float16,tfinal)
+#Ratio of Renewables over all years
+ratioRE = 0.999
 
 #model
-#m = Model(Ipopt.Optimizer)
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
-set_optimizer_attribute(m, "tol", 1e-3)
+set_optimizer_attribute(m, "tol", 1e-2)
 #set_silent(m)
 
 #parameter constraints
-@variable(m, P_nuc >= 0)
-@variable(m, P_gas >= 0)
+@variable(m, P_nuc == 0)
+@variable(m, P_gas == 0)
 @variable(m, gen_gas[1:tfinal] >= 0)
 @variable(m, solarSize >= 0)
 @variable(m, gen_solar[1:tfinal] >= 0)
 @variable(m, windSize >= 0)
 @variable(m, gen_wind[1:tfinal] >= 0)
-@variable(m, battery_energy_capacity >= 0)  # (MWh) battery capacity
-@variable(m, battery_power_capacity >= 0)  # (MW) battery capacity
-@variable(m, charge_battery_t[1:tfinal] >= 0)  # (MW) - Charge power for the battery
-@variable(m, discharge_battery_t[1:tfinal] >= 0)  # (MW) - Discharge power for the battery
-@variable(m, SOC_battery[1:tfinal] >= 0)  # (p.u) - State of charge of the battery 
-set_start_value(P_nuc, 2000.00)
-set_start_value(P_gas, 7000.00)
-set_start_value(solarSize, 5000.00)
-set_start_value(windSize, 7000.00)
-set_start_value(battery_energy_capacity, 10000.00)
-
-
+set_start_value(solarSize, 200000.00)
+set_start_value(windSize, 150000.00)
 #@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
-@objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_power_capacity + bat_capex*battery_power_capacity ) 
+@objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize ) 
+
+
 
 for i = 1:tfinal
-    @constraint(m, gen_gas[i] <= P_gas)
-    @constraint(m,gen_solar[i] <= gen_solar_av[i,3])
-    @constraint(m, gen_wind[i] <= gen_wind_av[i,3])
+    @NLconstraint(m, gen_gas[i] <= P_gas)
+    @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
+    @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
-
 #variable constraints
 for i = 1:tfinal
-    #@NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] >= -1e-4)
+    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] <= 1e-4)
 end
 
-#charge and discharge not at the same time
-for ti = 1:tfinal
-    #@NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 0);
-end
+#@constraint(m, sum(solarSize * gen_solar[i] for i in 1:tfinal) + sum(windSize * gen_wind[i] for i in 1:tfinal)  == ratioRE*sum(demandrow[1:tfinal, 2]))
 
-# BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
-for ti = 1:tfinal
-    @constraint(m, charge_battery_t[ti] <= battery_power_capacity);
-end
-
-# COSTRAINT 4: BATTERY DISCHARGE FOR ANY HOUR MUST BE LESS THAN MAX
-for ti = 1:tfinal
-    @constraint(m, discharge_battery_t[ti] <= battery_power_capacity);
-end
-
-# CONSTRAINT 5: DISCHARGE CAPACITY IS HALF THE BATTERY POWER CAPACITY
-@NLconstraint(m, battery_power_capacity == bat_power_ratio*battery_energy_capacity);
-
-# CONSTRAINTS 6: STATE OF CHARGE TRACKING
-@NLconstraint(m, SOC_battery[1] == SOC_ini + (((eta_charge*charge_battery_t[1])-(discharge_battery_t[1]/eta_discharge))*dt)/battery_energy_capacity);
-
-for ti = 2:tfinal
-    @NLconstraint(m, SOC_battery[ti] == SOC_battery[ti-1] + (((eta_charge*charge_battery_t[ti])-(discharge_battery_t[ti]/eta_discharge))*dt)/battery_energy_capacity);
-end
-
-# CONSTRAINT 8a: SOC LIMITS (MAXIMUM)
-for ti = 1:tfinal
-    @constraint(m, SOC_bat_MAX >= SOC_battery[ti]);
-end
-
-# CONSTRAINT 8b: SOC LIMITS (MINIMUM)
-for ti = 1:tfinal
-    @constraint(m, SOC_battery[ti] >= SOC_bat_MIN);
-end
-
-# initial and final SOC should be similar
-#@NLconstraint(m,SOC_battery[tfinal] >= SOC_battery[1]*0.95);
-#@NLconstraint(m,SOC_battery[tfinal] <= SOC_battery[1]*1.05)
-
-
-#### EXPORT DATA TO CSV #######
 
 optimize!(m)
+
+#### EXPORT DATA TO CSV #######
 
 #Store values hourly
 
@@ -245,35 +176,15 @@ for i = 1:tfinal
     wind_curt_opt[i] = JuMP.value.(gen_wind[i])/gen_wind_av[i,3]
 end
 #wind_opt = DataFrame(wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt )
-
-#battery
-
-batt_Ecap_opt = JuMP.value.(battery_energy_capacity)
-batt_Ecap_opt_list = zeros(tfinal)
-batt_Ecap_opt_list[1] = batt_Ecap_opt
-batt_Pcap_opt = JuMP.value.(battery_power_capacity)
-batt_Pcap_opt_list = zeros(tfinal)
-batt_Pcap_opt_list[1] = batt_Pcap_opt
-batt_charge_opt = zeros(tfinal)
-batt_discharge_opt = zeros(tfinal)
-batt_SOC_opt = zeros(tfinal)
-
-for i = 1:tfinal
-    batt_charge_opt[i] = JuMP.value.(charge_battery_t[i])
-    batt_discharge_opt[i] = JuMP.value.(discharge_battery_t[i])
-    batt_SOC_opt[i] = JuMP.value.(SOC_battery[i])
-end
-#batt_opt = DataFrame(Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
-
 demand_out = demandrow[1:tfinal,2];
-overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt,Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
+overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
 
-CSV.write("data/optimal/Optimal_Values_A_BATTERY_50YEARS.csv", overall_opt)
+CSV.write("data/optimal/Optimal_Values_B100.csv", overall_opt)
 
 
 ##### CHECK DATA RESULTS ON CONSOL #####
 
-hourInvest = 1
+hourInvest = 12
 
 println("P_nuc:")
 println(JuMP.value.(P_nuc))
@@ -299,5 +210,3 @@ println("wind Operation Ratio:")
 println(JuMP.value.(gen_wind[hourInvest])/gen_wind_av[hourInvest,3])
 println("Demand 1:")
 println(JuMP.value.(demandrow[hourInvest,2]))
-println("Battery Energy Cap:")
-println(JuMP.value.(battery_energy_capacity))
