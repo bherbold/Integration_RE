@@ -5,7 +5,7 @@ using CSV
 using DataFrames
 
 #General
-#tfinal = 8760;
+tfinal = 8760;
 dt = 1; 
 
 #Read Data
@@ -44,8 +44,8 @@ for i = 1:size(demandrow,1)
         delete!(demandrow,[i])
     end
 end
-#tfinal = size(demandrow,1); #run all
-tfinal = 1500;
+tfinal = size(demandrow,1); #run all
+#tfinal = 1500;
 
 #delete!(demandrow,[1])
 #lastElement = demandrow[size(demandrow,1),2]
@@ -64,7 +64,8 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 years = 50;
 
 
-cost_nuc = 7003 * 1000 + 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
+capex_nuc = 7003 * 1000;
+opex_nuc = 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
 
 capex_gas = 820 * 1000;
 gas_fuel = (0.0292/0.35)*1000; #gas price including eff. in €/MWh 
@@ -101,6 +102,7 @@ bat_power_ratio = 0.5;      # KW/KWh
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_optimizer_attribute(m, "tol", 1e-2)
 #set_silent(m)
 
 #parameter constraints
@@ -116,7 +118,11 @@ m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
 @variable(m, charge_battery_t[1:tfinal] >= 0)  # (MW) - Charge power for the battery
 @variable(m, discharge_battery_t[1:tfinal] >= 0)  # (MW) - Discharge power for the battery
 @variable(m, SOC_battery[1:tfinal] >= 0)  # (p.u) - State of charge of the battery 
-
+set_start_value(P_nuc_new, 100.00)
+set_start_value(P_gas_new, 600.00)
+set_start_value(solarSize, 20000.00)
+set_start_value(windSize, 15000.00)
+set_start_value(battery_energy_capacity, 40000.00)
 #objective funktion
 @objective(m, Min, (opex_nuc* (P_nuc_old + P_nuc_new) + capex_nuc * P_nuc_new + (capex_gas + opex_gas_fix)* P_gas_new + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize + bat_opex*battery_power_capacity + bat_capex*battery_power_capacity) ) 
 
@@ -127,13 +133,13 @@ for i = 1:tfinal
 end
 #variable constraints
 for i = 1:tfinal
-
-    @constraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
+    @constraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
+    @constraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
 end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
+    #@NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] == 0);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX

@@ -74,7 +74,8 @@ gen_wind_av = CSV.read("data/wind1.csv", DataFrame)
 #known variables
 years = 50;
 
-cost_nuc = 7003 * 1000 + 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
+capex_nuc = 7003 * 1000;
+opex_nuc = 109*1000 *years + 9.5 *years*tfinal; # 9.5 including fuel
 
 capex_gas = 820 * 1000;
 gas_fuel = (0.0292/0.35)*1000; #gas price including eff. in €/MWh 
@@ -85,15 +86,15 @@ P_gas_old = 3*700;
 
 
 # Cost solar
-solar_life = 30;             #Battery life in years
-new_solar = years/solar_life;    # amount of Batteries required 
+solar_life = 30;             #Solar life in years
+new_solar = years/solar_life;    # amount of replacement modules required 
 capex_solar = 1067 * 1000 *new_solar; # Euro per MW
-opex_solar = 19 * 1000 *years; # Euro per MW -> but will it last 50 years??? 
+opex_solar = 19 * 1000 *years; # Euro per MW  
 #Electrifying (source)
 
 # Cost wind
-wind_life = 30;             #Battery life in years
-new_wind = years/wind_life;    # amount of Batteries required 
+wind_life = 30;             #Wind life in years
+new_wind = years/wind_life;    # amount of wind turbines required 
 capex_wind = 1296 * 1000 *new_wind; # Euro per MW
 opex_wind = 40 * 1000*years; # Euro per MW per year
 
