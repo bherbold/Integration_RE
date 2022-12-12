@@ -135,7 +135,11 @@ set_optimizer_attribute(m, "tol", 1e-2)
 @variable(m, charge_battery_t[1:tfinal] >= 0)  # (MW) - Charge power for the battery
 @variable(m, discharge_battery_t[1:tfinal] >= 0)  # (MW) - Discharge power for the battery
 @variable(m, SOC_battery[1:tfinal] >= 0)  # (p.u) - State of charge of the battery 
-
+set_start_value(P_nuc, 2000.00)
+set_start_value(P_gas, 7000.00)
+set_start_value(solarSize, 20000.00)
+set_start_value(windSize, 15000.00)
+set_start_value(battery_energy_capacity, 4000.00)
 #@variable(m, x[1:tfinal] , Bin)
 
 
