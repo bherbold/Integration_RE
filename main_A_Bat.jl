@@ -47,17 +47,11 @@ for day in eachrow(demand)
     push!(demandrow, (size(demandrow,1) + 1,day.H23))
     push!(demandrow, (size(demandrow,1) + 1,day.H24))
 
-    if day.H25 != 0
-        push!(demandrow, (size(demandrow,1) + 1,day.H25))
-    end
-    
-
 end # The demand is now stored for every hour in a (tfinal,2) Matrix
 
 for i = 1:tfinal
     if demandrow.Demand[i] == 0
-        #demandrow.Demand[i] = demandrow.Demand[i-1]
-        delete!(demandrow,[i])
+        demandrow.Demand[i] = (demandrow.Demand[i-1]+demandrow.Demand[i+1])/2
     end
 end
 
