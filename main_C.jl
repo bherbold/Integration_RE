@@ -95,6 +95,7 @@ opex_wind = 40 * 1000*years; # Euro per MW per year
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_optimizer_attributes(m, "tol" => 1e-2, "max_iter" => 10000)
 #set_silent(m)
 
 #parameter constraints
@@ -113,14 +114,14 @@ m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
 
 
 for i = 1:tfinal
-    @NLconstraint(m, gen_gas[i] <= P_gas_new + P_gas_old)
-    @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
-    @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
+    @constraint(m, gen_gas[i] <= P_gas_new + P_gas_old)
+    @constraint(m,gen_solar[i] <= gen_solar_av[i,3])
+    @constraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 #variable constraints
 for i = 1:tfinal
-
-    @NLconstraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] == demandrow[i, 2])
+    @constraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] <= -1e4)
+    @constraint(m,P_nuc_old + P_nuc_new + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - demandrow[i, 2] <= 1e4)
 end
 
 optimize!(m)

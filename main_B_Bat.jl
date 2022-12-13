@@ -121,7 +121,7 @@ bat_power_ratio = 0.5;      # KW/KWh
 #SOC_battery = zeros(Float16,tfinal)
 
 #Ratio Renewable Engery other all the years
-ratioRE = 0.2
+ratioRE = 0.9
 
 println("--- Initialization Complete ---")
 
@@ -282,7 +282,7 @@ end
 demand_out = demandrow[1:tfinal,2];
 overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt,Battery_Energy_Cap_MWh = batt_Ecap_opt_list,  Battery_Power_Cap_MWh = batt_Pcap_opt_list, Battery_Charge_Cap_MW =batt_charge_opt, Battery_Disharge_Cap_MW =batt_discharge_opt, Battery_SOC =  batt_SOC_opt)
 
-CSV.write("data/optimal/Optimal_Values_B20_BATTERY.csv", overall_opt)
+CSV.write("data/optimal/Optimal_Values_B90_BATTERY.csv", overall_opt)
 
 
 ##### CHECK DATA RESULTS ON CONSOL #####
