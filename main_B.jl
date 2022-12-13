@@ -91,10 +91,11 @@ capex_wind = 1296 * 1000 *new_wind; # Euro per MW
 opex_wind = 40 * 1000*years; # Euro per MW per year
 
 #Ratio of Renewables over all years
-ratioRE = 0.999
+ratioRE = 0.2
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
+set_optimizer_attributes(m, "tol" => 1e-2, "max_iter" => 10000)
 #set_silent(m)
 
 #parameter constraints
@@ -105,7 +106,10 @@ m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
 @variable(m, gen_solar[1:tfinal] >= 0)
 @variable(m, windSize >= 0)
 @variable(m, gen_wind[1:tfinal] >= 0)
-
+set_start_value(P_nuc, 2000.00)
+set_start_value(P_gas, 7000.00)
+set_start_value(solarSize, 20000.00)
+set_start_value(windSize, 15000.00)
 #@variable(m, x[1:tfinal] , Bin)
 
 #objective funktion
@@ -177,7 +181,7 @@ end
 demand_out = demandrow[1:tfinal,2];
 overall_opt = DataFrame(hour= 1:tfinal,Demand = demand_out,Nuc_Capacity_MW = nuc_cap_opt_list, Nuc_generation_in_hour=JuMP.value.(P_nuc),Gas_Capacity_MW = gas_cap_opt_list, Gas_generation_in_hour=JuMP.value.(gen_gas),Solar_Capacity_MW = solar_cap_opt_list, Solar_available_in_hour=solar_avalable_opt, Solar_Curtailment_in_hour=solar_curt_opt,Solar_injected_in_hour = solar_gen_inject_opt,wind_Capacity_MW = wind_cap_opt_list, wind_available_in_hour=wind_avalable_opt, wind_Curtailment_in_hour=wind_curt_opt,wind_injected_in_hour = wind_gen_inject_opt)
 
-CSV.write("data/optimal/Optimal_Values_B.csv", overall_opt)
+CSV.write("data/optimal/Optimal_Values_B20.csv", overall_opt)
 
 
 ##### CHECK DATA RESULTS ON CONSOL #####

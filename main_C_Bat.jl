@@ -19,17 +19,30 @@ sort!(demand, (:DATA)) # sort the entries by date
 demandrow = DataFrame(Hour=[], Demand=[])
 
 for day in eachrow(demand)
-    push!(demandrow, (size(demandrow,1) + 1,(day.H01+day.H02+day.H03+day.H04)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H05+day.H06+day.H07+day.H08)/4))
-  
-    push!(demandrow, (size(demandrow,1) + 1,(day.H09+day.H10+day.H11+day.H12)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H13+day.H14+day.H15+day.H16)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H17+day.H18+day.H19+day.H20)/4))
-
-    push!(demandrow, (size(demandrow,1) + 1,(day.H21+day.H22+day.H23+day.H24)/4))
+    push!(demandrow, (size(demandrow,1) + 1,day.H01))
+    push!(demandrow, (size(demandrow,1) + 1,day.H02))
+    push!(demandrow, (size(demandrow,1) + 1,day.H03))
+    push!(demandrow, (size(demandrow,1) + 1,day.H04))
+    push!(demandrow, (size(demandrow,1) + 1,day.H05))
+    push!(demandrow, (size(demandrow,1) + 1,day.H06))
+    push!(demandrow, (size(demandrow,1) + 1,day.H07))
+    push!(demandrow, (size(demandrow,1) + 1,day.H08))
+    push!(demandrow, (size(demandrow,1) + 1,day.H09))
+    push!(demandrow, (size(demandrow,1) + 1,day.H10))
+    push!(demandrow, (size(demandrow,1) + 1,day.H11))
+    push!(demandrow, (size(demandrow,1) + 1,day.H12))
+    push!(demandrow, (size(demandrow,1) + 1,day.H13))
+    push!(demandrow, (size(demandrow,1) + 1,day.H14))
+    push!(demandrow, (size(demandrow,1) + 1,day.H15))
+    push!(demandrow, (size(demandrow,1) + 1,day.H16))
+    push!(demandrow, (size(demandrow,1) + 1,day.H17))
+    push!(demandrow, (size(demandrow,1) + 1,day.H18))
+    push!(demandrow, (size(demandrow,1) + 1,day.H19))
+    push!(demandrow, (size(demandrow,1) + 1,day.H20))
+    push!(demandrow, (size(demandrow,1) + 1,day.H21))
+    push!(demandrow, (size(demandrow,1) + 1,day.H22))
+    push!(demandrow, (size(demandrow,1) + 1,day.H23))
+    push!(demandrow, (size(demandrow,1) + 1,day.H24))
 
     if day.H25 != 0
         push!(demandrow, (size(demandrow,1) + 1,day.H25))
