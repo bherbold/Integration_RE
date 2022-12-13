@@ -52,12 +52,24 @@ for i = 1:size(demandrow,1)
     end
 end
 
+demand_copy = DataFrame(Hour=[], Demand=[])
 
-for hour in eachrow(demandrow)
+for i_hour = 1:size(demandrow,1)
+    local i_hour
+    if i_hour < size(demandrow,1)-4
 
+        if i_hour % 4 == 0
+            push!(demand_copy, (size(demand_copy,1) + 1,(demandrow[i_hour,2]+demandrow[i_hour+1,2]+demandrow[i_hour+2,2]+demandrow[i_hour+3,2])/4))
+            #println(i_hour)
+        end
 
+    else
+        #println("--- Average Demand done--- ")
+    end
 end
-
+demandrow = copy(demand_copy)
+#println(demand_copy)
+println(size(demandrow))
 tfinal = size(demandrow,1); #run all
 
 #tfinal = 1000;
@@ -154,7 +166,8 @@ end
 
 #charge and discharge not at the same time
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 0);
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] <= 1e-2);
+    @NLconstraint(m, charge_battery_t[ti] * discharge_battery_t[ti] >= -1e-2);
 end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
