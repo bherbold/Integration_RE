@@ -156,15 +156,15 @@ set_start_value(battery_energy_capacity, 30500.00)
 @objective(m, Min, cost_nuc * P_nuc + (capex_gas + opex_gas_fix)* P_gas + opex_gas_var * sum(gen_gas[1:tfinal]) + capex_solar * solarSize + opex_solar * solarSize + capex_wind * windSize + opex_wind * windSize+ bat_opex*battery_power_capacity + bat_capex*battery_power_capacity ) 
 
 for i = 1:tfinal
-    @NLconstraint(m, gen_gas[i] <= 0)
-    @NLconstraint(m,gen_solar[i] <= gen_solar_av[i,3])
-    @NLconstraint(m, gen_wind[i] <= gen_wind_av[i,3])
+    @constraint(m, gen_gas[i] <= 0)
+    @constraint(m,gen_solar[i] <= gen_solar_av[i,3])
+    @constraint(m, gen_wind[i] <= gen_wind_av[i,3])
 end
 #variable constraints
 for i = 1:tfinal
     #@NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] == demandrow[i, 2])
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
-    @NLconstraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
+    @constraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] >= -1e-4)
+    @constraint(m,P_nuc + gen_gas[i] + solarSize * gen_solar[i] + windSize * gen_wind[i] - charge_battery_t[i] + discharge_battery_t[i] - demandrow[i, 2] <= 1e-4)
 end
 
 #charge and discharge not at the same time
@@ -174,16 +174,16 @@ end
 
 # BATTERY CHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
-    @NLconstraint(m, charge_battery_t[ti] <= battery_power_capacity);
+    @constraint(m, charge_battery_t[ti] <= battery_power_capacity);
 end
 
 # COSTRAINT 4: BATTERY DISCHARGE FOR ANY HOUR MUST BE LESS THAN MAX
 for ti = 1:tfinal
-    @NLconstraint(m, discharge_battery_t[ti] <= battery_power_capacity);
+    @constraint(m, discharge_battery_t[ti] <= battery_power_capacity);
 end
 
 # CONSTRAINT 5: DISCHARGE CAPACITY IS HALF THE BATTERY POWER CAPACITY
-@NLconstraint(m, battery_power_capacity == bat_power_ratio*battery_energy_capacity);
+@constraint(m, battery_power_capacity == bat_power_ratio*battery_energy_capacity);
 
 # CONSTRAINTS 6: STATE OF CHARGE TRACKING
 @NLconstraint(m, SOC_battery[1] == SOC_ini + (((eta_charge*charge_battery_t[1])-(discharge_battery_t[1]/eta_discharge))*dt)/battery_energy_capacity);
@@ -194,12 +194,12 @@ end
 
 # CONSTRAINT 8a: SOC LIMITS (MAXIMUM)
 for ti = 1:tfinal
-    @NLconstraint(m, SOC_bat_MAX >= SOC_battery[ti]);
+    @constraint(m, SOC_bat_MAX >= SOC_battery[ti]);
 end
 
 # CONSTRAINT 8b: SOC LIMITS (MINIMUM)
 for ti = 1:tfinal
-    @NLconstraint(m, SOC_battery[ti] >= SOC_bat_MIN);
+    @constraint(m, SOC_battery[ti] >= SOC_bat_MIN);
 end
 
 #Renewables Ratio
