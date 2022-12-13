@@ -127,7 +127,7 @@ println("--- Initialization Complete ---")
 
 #model
 m = direct_model(optimizer_with_attributes(Ipopt.Optimizer))
-set_optimizer_attribute(m, "tol", 1e-2)
+set_optimizer_attributes(m, "tol" => 1e-2, "max_iter" => 10000)
 #set_silent(m)
 
 #parameter constraints
